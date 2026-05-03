@@ -1,0 +1,283 @@
+// AlgonixAI — Prisma Schema
+// All 12 tables from PDF §5.2
+// Supabase PostgreSQL 16 via connection pooling
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ──────────────────────────────────────────────────────────────────
+
+enum Persona {
+  formulation_scientist
+  computational_chemist
+  regulatory_affairs
+  synthetic_chemist
+  academic_researcher
+}
+
+enum IntentType {
+  design
+  scientific_qa
+  dossier_generation
+  document_qa
+}
+
+enum ExperimentStatus {
+  draft
+  queued
+  running
+  completed
+  failed
+}
+
+enum AgentName {
+  literature_research
+  toxicity_validator
+  polymer_designer
+  physics_validator
+  cso
+  regulatory_affairs
+  synthetic_chemist
+  formulation_expert
+  market_analyst
+  quality_assurance
+  agent_coordinator
+}
+
+enum AgentStatus {
+  pending
+  running
+  completed
+  failed
+  skipped
+}
+
+enum ModelStage {
+  staging
+  production
+  archived
+}
+
+// ── Tables ─────────────────────────────────────────────────────────────────
+
+// §5.2 — users
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  persona     Persona   @default(formulation_scientist)
+  org_id      String?
+  preferences Json      @default("{}")
+  created_at  DateTime  @default(now())
+
+  experiments     Experiment[]
+  chat_sessions   ChatSession[]
+  audit_logs      AuditLog[]
+
+  @@map("users")
+}
+
+// §5.2 — experiments
+model Experiment {
+  id            String           @id @default(uuid())
+  user_id       String
+  status        ExperimentStatus @default(draft)
+  persona       Persona
+  prompt        String
+  intent_type   IntentType
+  parameters    Json             @default("{}")
+  draft_flag    Boolean          @default(false)
+  created_at    DateTime         @default(now())
+  completed_at  DateTime?
+
+  user              User               @relation(fields: [user_id], references: [id])
+  candidates        Candidate[]
+  agent_runs        AgentRun[]
+  rag_traces        RagTrace[]
+  benchmark_results BenchmarkResult[]
+  simulation_runs   SimulationRun[]
+  chat_sessions     ChatSession[]
+  audit_logs        AuditLog[]
+
+  @@index([user_id])
+  @@index([status])
+  @@index([persona])
+  @@index([intent_type])
+  @@index([created_at])
+  @@map("experiments")
+}
+
+// §5.2 — candidates
+model Candidate {
+  id              String   @id @default(uuid())
+  experiment_id   String
+  psmiles         String
+  toxicity_pass   Boolean?
+  scores          Json     @default("{}")
+  rank            Int?
+  benchmark_deltas Json    @default("{}")
+
+  experiment        Experiment        @relation(fields: [experiment_id], references: [id])
+  model_predictions ModelPrediction[]
+  simulation_runs   SimulationRun[]
+  benchmark_results BenchmarkResult[]
+
+  @@index([experiment_id])
+  @@index([rank])
+  @@map("candidates")
+}
+
+// §5.2 — agent_runs
+model AgentRun {
+  id            String      @id @default(uuid())
+  experiment_id String
+  agent_name    AgentName
+  status        AgentStatus @default(pending)
+  started_at    DateTime?
+  completed_at  DateTime?
+  token_count   Int?
+  cost_usd      Float?
+  output        Json?
+
+  experiment Experiment @relation(fields: [experiment_id], references: [id])
+
+  @@index([experiment_id])
+  @@index([agent_name])
+  @@index([status])
+  @@map("agent_runs")
+}
+
+// §5.2 — rag_traces
+model RagTrace {
+  id                  String   @id @default(uuid())
+  experiment_id       String
+  query               String
+  retrieved_chunks    Json     @default("[]")
+  reranked_chunks     Json     @default("[]")
+  hallucination_flags Json     @default("[]")
+  groundedness_score  Float?
+  faithfulness_score  Float?
+  created_at          DateTime @default(now())
+
+  experiment Experiment @relation(fields: [experiment_id], references: [id])
+
+  @@index([experiment_id])
+  @@map("rag_traces")
+}
+
+// §5.2 — model_predictions
+model ModelPrediction {
+  id           String   @id @default(uuid())
+  candidate_id String
+  model_name   String
+  model_version String
+  prediction   Json     @default("{}")
+  uncertainty  Float?
+  inference_at DateTime @default(now())
+
+  candidate Candidate @relation(fields: [candidate_id], references: [id])
+
+  @@index([candidate_id])
+  @@index([model_name])
+  @@map("model_predictions")
+}
+
+// §5.2 — simulation_runs
+model SimulationRun {
+  id            String   @id @default(uuid())
+  candidate_id  String
+  experiment_id String?
+  status        String   @default("pending")
+  force_field   String   @default("AMBER_ff14SB")
+  temperature_k Float    @default(313.0)
+  timescale_ns  Float?
+  rmsd_final    Float?
+  converged     Boolean?
+  storage_path  String?
+  cost_usd      Float?
+  gpu_provider  String?
+  started_at    DateTime?
+  completed_at  DateTime?
+
+  candidate  Candidate   @relation(fields: [candidate_id], references: [id])
+  experiment Experiment? @relation(fields: [experiment_id], references: [id])
+
+  @@index([candidate_id])
+  @@index([status])
+  @@map("simulation_runs")
+}
+
+// §5.2 — benchmark_results
+model BenchmarkResult {
+  id            String  @id @default(uuid())
+  experiment_id String
+  candidate_id  String
+  tier          Int
+  reference_name String
+  delta_pct     Float?
+  rank          Int?
+
+  experiment Experiment @relation(fields: [experiment_id], references: [id])
+  candidate  Candidate  @relation(fields: [candidate_id], references: [id])
+
+  @@index([experiment_id])
+  @@index([candidate_id])
+  @@map("benchmark_results")
+}
+
+// §5.2 — literature_citations
+model LiteratureCitation {
+  id          String   @id @default(uuid())
+  chunk_id    String
+  source_type String
+  pubmed_id   String?
+  title       String?
+  year        Int?
+  claim_text  String?
+  created_at  DateTime @default(now())
+
+  @@index([chunk_id])
+  @@index([pubmed_id])
+  @@map("literature_citations")
+}
+
+// §5.2 — audit_log (immutable append-only, 21 CFR Part 11)
+model AuditLog {
+  id            String   @id @default(uuid())
+  user_id       String?
+  experiment_id String?
+  action        String
+  payload       Json     @default("{}")
+  ip            String?
+  timestamp     DateTime @default(now())
+
+  user       User?       @relation(fields: [user_id], references: [id])
+  experiment Experiment? @relation(fields: [experiment_id], references: [id])
+
+  @@index([user_id])
+  @@index([experiment_id])
+  @@index([timestamp])
+  @@map("audit_log")
+}
+
+// §5.2 — chat_sessions
+model ChatSession {
+  id                    String   @id @default(uuid())
+  user_id               String
+  messages              Json     @default("[]")
+  intent_history        Json     @default("[]")
+  linked_experiment_id  String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  user       User        @relation(fields: [user_id], references: [id])
+  experiment Experiment? @relation(fields: [linked_experiment_id], references: [id])
+
+  @@index([user_id])
+  @@index([linked_experiment_id])
+  @@map("chat_sessions")
+}

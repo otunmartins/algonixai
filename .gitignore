@@ -1,0 +1,56 @@
+# Dependencies
+web/node_modules/
+api/__pycache__/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+api/.env
+web/.env
+web/.env.local
+
+# Next.js build output
+web/.next/
+web/out/
+
+# Python build
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Vector store data
+chroma_db/
+
+# MLflow (large experiment artifacts)
+mlartifacts/
+mlruns/
+
+# Grafana Alloy binary and runtime data
+monitoring/alloy/*.exe
+monitoring/alloy/data-alloy/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo

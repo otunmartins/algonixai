@@ -1,0 +1,21 @@
+// Scrape AlgonixAI FastAPI /metrics every 15 seconds
+prometheus.scrape "algonixai_api" {
+  targets = [
+    { __address__ = "localhost:8000" },
+  ]
+  forward_to    = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+  scrape_interval = "15s"
+  job_name      = "algonixai-api"
+}
+
+prometheus.remote_write "metrics_hosted_prometheus" {
+  endpoint {
+    name = "hosted-prometheus"
+    url  = "https://prometheus-prod-55-prod-gb-south-1.grafana.net/api/prom/push"
+
+    basic_auth {
+      username = env("GRAFANA_PROM_USER")
+      password = env("GRAFANA_PROM_TOKEN")
+    }
+  }
+}

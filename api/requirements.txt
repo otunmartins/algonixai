@@ -1,0 +1,14 @@
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+sentry-sdk[fastapi]==2.19.0
+python-dotenv==1.0.1
+psycopg2-binary==2.9.10
+supabase==2.10.0
+pydantic==2.9.2
+pydantic-settings==2.6.0
+prometheus-fastapi-instrumentator==7.0.0
+langfuse==2.36.1
+chromadb==1.5.8
+rank-bm25==0.2.2
+anthropic>=0.40.0
+mlflow-skinny>=2.0.0
